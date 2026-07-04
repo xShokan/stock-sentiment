@@ -1,0 +1,116 @@
+@import "tailwindcss";
+
+:root {
+  --bg-primary: #0f1117;
+  --bg-secondary: #1a1d2e;
+  --bg-card: #21243a;
+  --text-primary: #e8eaed;
+  --text-secondary: #9aa0b0;
+  --green: #00c853;
+  --red: #ff1744;
+  --blue: #448aff;
+  --gold: #ffab00;
+  --border: #2a2e45;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100vh;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+/* Sentiment colors */
+.sentiment-extreme-bullish { color: #00e676; }
+.sentiment-bullish { color: #69f0ae; }
+.sentiment-neutral { color: #ffd740; }
+.sentiment-bearish { color: #ff6e40; }
+.sentiment-extreme-bearish { color: #ff1744; }
+
+.bg-sentiment-extreme-bullish { background: linear-gradient(135deg, #00c853, #00e676); }
+.bg-sentiment-bullish { background: linear-gradient(135deg, #64dd17, #aeea00); }
+.bg-sentiment-neutral { background: linear-gradient(135deg, #ffd600, #ffab00); }
+.bg-sentiment-bearish { background: linear-gradient(135deg, #ff6d00, #ff3d00); }
+.bg-sentiment-extreme-bearish { background: linear-gradient(135deg, #d50000, #ff1744); }
+
+/* Price colors */
+.price-up { color: #00c853; }
+.price-down { color: #ff1744; }
+
+/* Card */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  transition: border-color 0.2s;
+}
+.card:hover {
+  border-color: #3a3f5c;
+}
+
+/* Button */
+.btn {
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.btn:hover {
+  border-color: var(--blue);
+  background: #2a3050;
+}
+.btn-primary {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: white;
+}
+.btn-primary:hover {
+  background: #5c9aff;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in {
+  animation: fadeIn 0.4s ease-out;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+.animate-pulse-slow {
+  animation: pulse 2s ease-in-out infinite;
+}

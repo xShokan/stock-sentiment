@@ -1,10 +1,10 @@
 /* 市场情绪对比页 */
 import { useEffect, useState } from 'react';
-import { Globe, TrendingUp, TrendingDown } from 'lucide-react';
-import { Loading, ErrorDisplay } from '../components/Common';
-import SentimentChart from '../components/Stock/SentimentChart';
+import { Globe } from 'lucide-react';
+import { Loading } from '../components/Common';
+// import SentimentChart from '../components/Stock/SentimentChart';
 import { getMarketOverview, getHotTopics, getTopBullish, getTopBearish } from '../services/api';
-import type { MarketOverview, HotTopic, HotStock, HistoryPoint } from '../types';
+import type { MarketOverview, HotTopic, HotStock } from '../types';
 import { SENTIMENT_COLORS } from '../types';
 
 export default function MarketOverviewPage() {

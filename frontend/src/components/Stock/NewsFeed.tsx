@@ -1,5 +1,5 @@
 /* 新闻列表 */
-import { ExternalLink, Newspaper } from 'lucide-react';
+import { Newspaper } from 'lucide-react';
 import type { NewsItem } from '../../types';
 import { SENTIMENT_COLORS } from '../../types';
 

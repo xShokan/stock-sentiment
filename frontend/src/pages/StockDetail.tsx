@@ -1,11 +1,12 @@
 /* StockDetail — 含情绪来源详情 */
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Search, Newspaper, MessageCircle, TrendingUp, Radio } from 'lucide-react';
+import { ArrowLeft, Search, Newspaper, MessageCircle, TrendingUp, Radio, Sparkles, Loader2 } from 'lucide-react';
 import { getStockOverview, getStockNews, getStockSocial, getStockSentiment } from '../services/api';
 import type { StockOverview, NewsItem, SocialPost, SentimentDetail } from '../types';
 import { SENTIMENT_COLORS } from '../types';
 import { useLiveNews } from '../hooks/useLiveNews';
+import { analyzeNewsWithAI, hasAIKey, type AIAnalysisResult } from '../services/aiAnalyzer';
 
 export default function StockDetail() {
   const { code } = useParams<{ code: string }>();
@@ -15,8 +16,18 @@ export default function StockDetail() {
   const [news, setNews] = useState<NewsItem[]>([]);
   const [social, setSocial] = useState<SocialPost[]>([]);
   const [status, setStatus] = useState<'loading' | 'ok' | 'notfound'>('loading');
-  const [tab, setTab] = useState<'news' | 'live' | 'social'>('news');
-  const { news: liveNews, loading: liveLoading, error: liveError } = useLiveNews(code);
+  const handleAIAnalysis = async (itemId: string, title: string, summary: string) => {
+    if (!hasAIKey()) return;
+    setAiLoading(prev => ({ ...prev, [itemId]: true }));
+    try {
+      const result = await analyzeNewsWithAI(title, summary);
+      setAiResults(prev => ({ ...prev, [itemId]: result }));
+    } catch (e: any) {
+      setAiResults(prev => ({ ...prev, [itemId]: null }));
+    } finally {
+      setAiLoading(prev => ({ ...prev, [itemId]: false }));
+    }
+  };
 
   useEffect(() => {
     if (!code) return;
@@ -189,6 +200,8 @@ export default function StockDetail() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {news.map((item) => {
             const sColor = SENTIMENT_COLORS[item.sentiment > 0.2 ? 'bullish' : item.sentiment < -0.2 ? 'bearish' : 'neutral'];
+            const aiResult = aiResults[item.id];
+            const aiLoad = aiLoading[item.id];
             return (
               <div key={item.id} style={{
                 background: 'var(--bg-card)', borderRadius: 10, padding: 14,
@@ -202,10 +215,49 @@ export default function StockDetail() {
                     <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 6 }}>
                       {item.summary}
                     </div>
-                    <div style={{ display: 'flex', gap: 10, fontSize: 11, color: 'var(--text-secondary)' }}>
+                    <div style={{ display: 'flex', gap: 10, fontSize: 11, color: 'var(--text-secondary)', alignItems: 'center' }}>
                       <span>{item.source}</span>
                       <span>{item.published_at}</span>
+                      {hasAIKey() && (
+                        <button
+                          onClick={() => handleAIAnalysis(item.id, item.title, item.summary)}
+                          disabled={aiLoad}
+                          style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 3,
+                            padding: '2px 8px', borderRadius: 4, border: '1px solid #69f0ae55',
+                            background: 'transparent', color: '#69f0ae', fontSize: 11, cursor: 'pointer',
+                          }}
+                        >
+                          {aiLoad ? <Loader2 size={11} className="animate-spin" /> : <Sparkles size={11} />}
+                          AI 分析
+                        </button>
+                      )}
                     </div>
+
+                    {/* AI Analysis Result */}
+                    {aiResult && (
+                      <div style={{
+                        marginTop: 10, padding: 10, borderRadius: 6,
+                        background: aiResult.sentiment > 0 ? '#00e67611' : aiResult.sentiment < 0 ? '#ff174411' : '#ffd74011',
+                        border: `1px solid ${aiResult.sentiment > 0 ? '#00e67633' : aiResult.sentiment < 0 ? '#ff174433' : '#ffd74033'}`,
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                          <span style={{
+                            fontSize: 11, fontWeight: 600, padding: '2px 6px', borderRadius: 3,
+                            color: aiResult.sentiment > 0 ? '#00e676' : aiResult.sentiment < 0 ? '#ff1744' : '#ffd740',
+                            background: aiResult.sentiment > 0 ? '#00e67622' : aiResult.sentiment < 0 ? '#ff174422' : '#ffd74022',
+                          }}>
+                            🤖 {aiResult.sentimentLabel}
+                          </span>
+                          <span style={{ fontSize: 11, color: 'var(--text-secondary)', fontStyle: 'italic' }}>
+                            {aiResult.reasoning}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                          📝 {aiResult.summary}
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <div style={{
                     fontSize: 11, fontWeight: 600, padding: '3px 8px', borderRadius: 4,

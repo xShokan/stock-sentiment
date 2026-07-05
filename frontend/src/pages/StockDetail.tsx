@@ -1,10 +1,11 @@
 /* StockDetail — 含情绪来源详情 */
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Search, Newspaper, MessageCircle, TrendingUp } from 'lucide-react';
+import { ArrowLeft, Search, Newspaper, MessageCircle, TrendingUp, Radio } from 'lucide-react';
 import { getStockOverview, getStockNews, getStockSocial, getStockSentiment } from '../services/api';
 import type { StockOverview, NewsItem, SocialPost, SentimentDetail } from '../types';
 import { SENTIMENT_COLORS } from '../types';
+import { useLiveNews } from '../hooks/useLiveNews';
 
 export default function StockDetail() {
   const { code } = useParams<{ code: string }>();
@@ -14,7 +15,8 @@ export default function StockDetail() {
   const [news, setNews] = useState<NewsItem[]>([]);
   const [social, setSocial] = useState<SocialPost[]>([]);
   const [status, setStatus] = useState<'loading' | 'ok' | 'notfound'>('loading');
-  const [tab, setTab] = useState<'news' | 'social'>('news');
+  const [tab, setTab] = useState<'news' | 'live' | 'social'>('news');
+  const { news: liveNews, loading: liveLoading, error: liveError } = useLiveNews(code);
 
   useEffect(() => {
     if (!code) return;
@@ -154,20 +156,29 @@ export default function StockDetail() {
       {/* Tab selector */}
       <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', marginBottom: 16 }}>
         <button onClick={() => setTab('news')} style={{
-          padding: '10px 20px', background: 'none', border: 'none',
+          padding: '10px 16px', background: 'none', border: 'none',
           borderBottom: tab === 'news' ? '2px solid var(--blue)' : '2px solid transparent',
           color: tab === 'news' ? '#e8eaed' : 'var(--text-secondary)',
-          fontSize: 14, fontWeight: tab === 'news' ? 600 : 400, cursor: 'pointer',
-          display: 'flex', alignItems: 'center', gap: 6,
+          fontSize: 13, fontWeight: tab === 'news' ? 600 : 400, cursor: 'pointer',
+          display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap',
         }}>
-          <Newspaper size={14} /> 新闻 ({news.length})
+          <Newspaper size={14} /> 静态新闻 ({news.length})
+        </button>
+        <button onClick={() => setTab('live')} style={{
+          padding: '10px 16px', background: 'none', border: 'none',
+          borderBottom: tab === 'live' ? '2px solid #00e676' : '2px solid transparent',
+          color: tab === 'live' ? '#e8eaed' : 'var(--text-secondary)',
+          fontSize: 13, fontWeight: tab === 'live' ? 600 : 400, cursor: 'pointer',
+          display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap',
+        }}>
+          <Radio size={14} color="#00e676" /> 实时新闻 {liveNews.length > 0 ? `(${liveNews.length})` : ''}
         </button>
         <button onClick={() => setTab('social')} style={{
-          padding: '10px 20px', background: 'none', border: 'none',
+          padding: '10px 16px', background: 'none', border: 'none',
           borderBottom: tab === 'social' ? '2px solid var(--blue)' : '2px solid transparent',
           color: tab === 'social' ? '#e8eaed' : 'var(--text-secondary)',
-          fontSize: 14, fontWeight: tab === 'social' ? 600 : 400, cursor: 'pointer',
-          display: 'flex', alignItems: 'center', gap: 6,
+          fontSize: 13, fontWeight: tab === 'social' ? 600 : 400, cursor: 'pointer',
+          display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap',
         }}>
           <MessageCircle size={14} /> 社媒讨论 ({social.length})
         </button>
@@ -207,6 +218,63 @@ export default function StockDetail() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* 实时新闻 Tab */}
+      {tab === 'live' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {liveLoading && (
+            <div style={{ textAlign: 'center', padding: 30, color: 'var(--text-secondary)', fontSize: 13 }}>
+              📡 正在从 Google News 拉取最新消息...
+            </div>
+          )}
+          {liveError && (
+            <div style={{ textAlign: 'center', padding: 20, fontSize: 13, color: '#ff6e40' }}>
+              ⚠️ 实时新闻加载失败，请查看「静态新闻」Tab。({liveError})
+            </div>
+          )}
+          {!liveLoading && !liveError && liveNews.length === 0 && (
+            <div style={{ textAlign: 'center', padding: 20, fontSize: 13, color: 'var(--text-secondary)' }}>
+              暂无实时新闻
+            </div>
+          )}
+          {liveNews.map((item, i) => (
+            <div key={i} style={{
+              background: 'var(--bg-card)', borderRadius: 10, padding: 14,
+              border: '1px solid #00e67633',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                <span style={{
+                  fontSize: 10, fontWeight: 600, padding: '2px 6px', borderRadius: 4,
+                  background: '#00e67622', color: '#00e676', whiteSpace: 'nowrap',
+                  flexShrink: 0, marginTop: 2,
+                }}>
+                  实时
+                </span>
+                <div style={{ flex: 1 }}>
+                  <a
+                    href={item.link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ color: '#e8eaed', textDecoration: 'none', fontSize: 14, fontWeight: 500, lineHeight: 1.4, display: 'block', marginBottom: 4 }}
+                  >
+                    {item.title}
+                  </a>
+                  <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 6 }}>
+                    {item.snippet}
+                  </div>
+                  <div style={{ display: 'flex', gap: 10, fontSize: 11, color: 'var(--text-secondary)' }}>
+                    <span>{item.source}</span>
+                    <span>{item.pubDate?.slice(0, 16)}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+          <div style={{ fontSize: 11, color: '#555', textAlign: 'center', marginTop: 8 }}>
+            实时数据来自 Google News RSS · 点击标题查看原文 · {liveLoading ? '加载中...' : `5分钟内缓存有效`}
+          </div>
         </div>
       )}
 

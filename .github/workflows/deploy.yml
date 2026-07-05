@@ -1,9 +1,11 @@
-# GitHub Pages 自动部署
+# GitHub Pages 自动部署（含新闻自动抓取）
 name: Deploy to GitHub Pages
 
 on:
   push:
     branches: [master, main]
+  schedule:
+    - cron: '0 2,14 * * *'  # 每天 UTC 2:00 和 14:00（北京时间 10:00 和 22:00）
   workflow_dispatch:
 
 permissions:
@@ -27,11 +29,17 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      - name: Install & Build
+      - name: 抓取最新新闻
+        run: node scripts/fetch-news.js
+        continue-on-error: true  # 抓取失败不阻塞构建，使用已有数据
+
+      - name: 安装前端依赖
         working-directory: frontend
-        run: |
-          npm ci
-          npm run build:static
+        run: npm ci
+
+      - name: 构建
+        working-directory: frontend
+        run: npm run build:static
 
       - uses: actions/configure-pages@v4
 

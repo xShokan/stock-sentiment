@@ -1,9 +1,36 @@
 /* 静态模式模拟数据 — 无需后端即可运行 */
 import type { StockOverview, SentimentScore, NewsItem, SocialPost, HotStock, MarketOverview, HotTopic, SentimentDetail, HistoryPoint } from '../types';
 
+// ====== 确定性伪随机（同一股票代码每次生成一致的数据） ======
+function hashCode(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) {
+    h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+  }
+  return h;
+}
+
+function createRNG(seed: string) {
+  let state = hashCode(seed);
+  return function (min = 0, max = 1): number {
+    state = (state * 1103515245 + 12345) & 0x7fffffff;
+    return min + (state / 0x7fffffff) * (max - min);
+  };
+}
+
+// 全局股票 RNG 缓存
+const rngCache: Record<string, ReturnType<typeof createRNG>> = {};
+function stockRNG(code: string) {
+  if (!rngCache[code]) rngCache[code] = createRNG(code);
+  return rngCache[code];
+}
+
 // 情绪等级随机
 function randSentiment(min = -0.5, max = 0.7): number {
   return +(Math.random() * (max - min) + min).toFixed(3);
+}
+function stockSentiment(code: string, min = -0.5, max = 0.7): number {
+  return +stockRNG(code)(min, max).toFixed(3);
 }
 function label(s: number): string {
   if (s > 0.6) return '🔥 极度乐观';
@@ -70,14 +97,15 @@ const NEWS_TEMPLATES: Record<string, { title: string; summary: string; source: s
   ],
 };
 
-function genNews(count: number, baseSentiment: number): NewsItem[] {
+function genNews(code: string, count: number, baseSentiment: number): NewsItem[] {
+  const rng = stockRNG(code + 'news');
   const results: NewsItem[] = [];
   const now = new Date();
   for (let i = 0; i < count; i++) {
-    const _mood = baseSentiment > 0.1 ? 'bullish' : baseSentiment < -0.1 ? 'bearish' : (Math.random() > 0.5 ? 'bullish' : 'bearish');
+    const mood = baseSentiment > 0.1 ? 'bullish' : baseSentiment < -0.1 ? 'bearish' : (rng() > 0.5 ? 'bullish' : 'bearish');
     const pool = [...NEWS_TEMPLATES.bullish, ...NEWS_TEMPLATES.bearish];
     const tpl = pool[i % pool.length];
-    const s = +(baseSentiment + (Math.random() - 0.5) * 0.4).toFixed(3);
+    const s = +(baseSentiment + (rng(-0.2, 0.2))).toFixed(3);
     results.push({
       id: `news-${Date.now()}-${i}`,
       title: tpl.title,
@@ -91,7 +119,8 @@ function genNews(count: number, baseSentiment: number): NewsItem[] {
   return results;
 }
 
-function genSocial(count: number, baseSentiment: number): SocialPost[] {
+function genSocial(code: string, count: number, baseSentiment: number): SocialPost[] {
+  const rng = stockRNG(code + 'social');
   const platforms = ['雪球', '微博', 'Reddit'];
   const authors = ['投资达人老王', '价值投资者', '趋势猎手', '韭菜变镰刀', 'u/WSB_YOLO'];
   const contents = [
@@ -106,14 +135,14 @@ function genSocial(count: number, baseSentiment: number): SocialPost[] {
   ];
   const results: SocialPost[] = [];
   for (let i = 0; i < count; i++) {
-    const s = +(baseSentiment + (Math.random() - 0.5) * 0.6).toFixed(3);
+    const s = +(baseSentiment + (rng(-0.3, 0.3))).toFixed(3);
     results.push({
       id: `social-${Date.now()}-${i}`,
       platform: platforms[i % 3],
       content: contents[i % contents.length],
       author: authors[i % authors.length],
-      likes: Math.floor(Math.random() * 500),
-      comments: Math.floor(Math.random() * 100),
+      likes: Math.floor(rng(0, 500)),
+      comments: Math.floor(rng(0, 100)),
       published_at: new Date(Date.now() - i * 3600000).toISOString().slice(0, 16).replace('T', ' '),
       sentiment: s,
       sentiment_label: label(s),
@@ -134,18 +163,19 @@ export function mockSearchStocks(q: string) {
   }));
 }
 
-export function mockGetStockOverview(code: string | undefined): StockOverview | null {
+export function mockGetStockOverview(code: string): StockOverview | null {
   const stock = STOCKS.find(s => s.code === code.toUpperCase());
   if (!stock) return null;
-  const s = randSentiment(-0.3, 0.6);
-  const ns = randSentiment(-0.3, 0.6);
-  const ss = randSentiment(-0.4, 0.7);
+  const rng = stockRNG(code);
+  const s = +rng(-0.35, 0.65).toFixed(3);
+  const ns = +rng(-0.3, 0.6).toFixed(3);
+  const ss = +rng(-0.4, 0.7).toFixed(3);
   return {
     code: stock.code,
     name: stock.name,
     market: stock.market as 'a' | 'hk' | 'us',
-    price: +(Math.random() * 400 + 20).toFixed(2),
-    change_pct: +((Math.random() - 0.5) * 10).toFixed(2),
+    price: +rng(20, 500).toFixed(2),
+    change_pct: +rng(-5, 5).toFixed(2),
     sentiment: { overall: s, news_score: ns, social_score: ss, level: level(s), label: label(s), confidence: 0.85 },
     news_count: 8,
     social_count: 10,
@@ -153,14 +183,14 @@ export function mockGetStockOverview(code: string | undefined): StockOverview | 
   };
 }
 
-export function mockGetStockNews(code: string | undefined): NewsItem[] {
-  const s = randSentiment(-0.4, 0.6);
-  return genNews(8, s);
+export function mockGetStockNews(code: string): NewsItem[] {
+  const s = stockSentiment(code, -0.4, 0.6);
+  return genNews(code, 8, s);
 }
 
-export function mockGetStockSocial(code: string | undefined): SocialPost[] {
-  const s = randSentiment(-0.5, 0.7);
-  return genSocial(10, s);
+export function mockGetStockSocial(code: string): SocialPost[] {
+  const s = stockSentiment(code, -0.5, 0.7);
+  return genSocial(code, 10, s);
 }
 
 export function mockGetHotStocks(): HotStock[] {
@@ -212,15 +242,16 @@ export function mockGetHotTopics(): HotTopic[] {
 }
 
 export function mockGetMarketNews(): NewsItem[] {
-  return genNews(6, randSentiment(-0.3, 0.5));
+  return genNews('market', 6, randSentiment(-0.3, 0.5));
 }
 
-export function mockGetSentimentDetail(code: string | undefined): SentimentDetail | null {
+export function mockGetSentimentDetail(code: string): SentimentDetail | null {
   const stock = STOCKS.find(s => s.code === code.toUpperCase());
   if (!stock) return null;
-  const s = randSentiment(-0.3, 0.6);
-  const ns = randSentiment(-0.3, 0.6);
-  const ss = randSentiment(-0.4, 0.7);
+  const rng = stockRNG(code);
+  const s = +rng(-0.35, 0.65).toFixed(3);
+  const ns = +rng(-0.3, 0.6).toFixed(3);
+  const ss = +rng(-0.4, 0.7).toFixed(3);
   return {
     code: stock.code, name: stock.name,
     sentiment: { overall: s, news_score: ns, social_score: ss, level: level(s), label: label(s), confidence: 0.85 },

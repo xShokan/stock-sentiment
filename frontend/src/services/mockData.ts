@@ -1,5 +1,6 @@
 /* 静态模式模拟数据 — 无需后端即可运行 */
 import type { StockOverview, SentimentScore, NewsItem, SocialPost, HotStock, MarketOverview, HotTopic, SentimentDetail, HistoryPoint } from '../types';
+import { REAL_NEWS } from './realNews';
 
 // ====== 确定性伪随机（同一股票代码每次生成一致的数据） ======
 function hashCode(s: string): number {
@@ -184,6 +185,24 @@ export function mockGetStockOverview(code: string): StockOverview | null {
 }
 
 export function mockGetStockNews(code: string): NewsItem[] {
+  // 优先使用真实新闻
+  const real = REAL_NEWS[code.toUpperCase()];
+  if (real) {
+    const baseSent = stockSentiment(code, -0.4, 0.6);
+    return real.map((item, i) => {
+      const s = +(baseSent + stockRNG(code + 'rn' + i)(-0.2, 0.2)).toFixed(3);
+      return {
+        id: `rn-${code}-${i}`,
+        title: item.title,
+        summary: item.summary,
+        source: item.source,
+        published_at: new Date(Date.now() - i * 43200000).toISOString().slice(0, 16).replace('T', ' '),
+        sentiment: s,
+        sentiment_label: label(s),
+      };
+    });
+  }
+  // Fallback: 模板新闻
   const s = stockSentiment(code, -0.4, 0.6);
   return genNews(code, 8, s);
 }

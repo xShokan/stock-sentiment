@@ -47,6 +47,37 @@ function fetchRSS(query) {
   });
 }
 
+function cleanHtml(s) {
+  return (s || '')
+    // 先解码 HTML 实体（Google News CN 用双编码）
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&#39;/g, "'")
+    .replace(/&#x27;/g, "'")
+    .replace(/&nbsp;/g, ' ')
+    // 移除整个 a 标签及内容
+    .replace(/<a[^>]*>.*?<\/a>/gi, '')
+    // 移除所有剩余 HTML 标签
+    .replace(/<[^>]*>/g, '')
+    // 再次清理可能残留的实体
+    .replace(/&[a-z]+;/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function extractSummary(title, desc) {
+  // 从 description 提取纯文本摘要
+  let text = cleanHtml(desc);
+  // 如果摘要和标题差不多，说明没实际内容
+  if (!text || text.length < 10 || title.includes(text.slice(0, 15))) {
+    return '';
+  }
+  return text.slice(0, 250).trim();
+}
+
 function parseRSSItems(xml) {
   const items = [];
   const itemRegex = /<item>([\s\S]*?)<\/item>/g;
@@ -54,19 +85,20 @@ function parseRSSItems(xml) {
   while ((match = itemRegex.exec(xml)) !== null) {
     const itemXml = match[1];
     const title = (itemXml.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/) || itemXml.match(/<title>(.*?)<\/title>/))?.[1] || '';
-    const link = (itemXml.match(/<link>(.*?)<\/link>/))?.[1] || '';
     const desc = (itemXml.match(/<description><!\[CDATA\[(.*?)\]\]><\/description>/) || itemXml.match(/<description>(.*?)<\/description>/))?.[1] || '';
-    const source = (itemXml.match(/<source.*?>(.*?)<\/source>/))?.[1] || '';
+    const source = (itemXml.match(/<source[^>]*>(.*?)<\/source>/))?.[1] || '';
     const pubDate = (itemXml.match(/<pubDate>(.*?)<\/pubDate>/))?.[1] || '';
 
-    // Clean HTML tags from description
-    const cleanDesc = desc.replace(/<[^>]*>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"');
+    const cleanTitle = cleanHtml(title);
+    const cleanDesc = desc; // keep raw for extractSummary
+    const cleanSource = cleanHtml(source);
 
-    if (title && cleanDesc.length > 20) {
+    if (cleanTitle) {
+      const summary = extractSummary(cleanTitle, cleanDesc) || cleanTitle;
       items.push({
-        title: title.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"'),
-        summary: cleanDesc.slice(0, 200).trim(),
-        source: source,
+        title: cleanTitle.slice(0, 120),
+        summary: summary,
+        source: cleanSource || '财经媒体',
         date: pubDate,
       });
     }

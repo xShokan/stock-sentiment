@@ -30,14 +30,30 @@ function buildRSSUrl(code: string): string {
   return `https://news.google.com/rss/search?q=${query}&hl=${lang}&ceid=${lang === 'en-US&gl=US' ? 'US:en' : 'CN:zh-Hans'}`;
 }
 
+function cleanHtml(s: string): string {
+  return (s || '')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, ' ')
+    .replace(/<a[^>]*>.*?<\/a>/gi, '')
+    .replace(/<[^>]*>/g, '')
+    .replace(/&[a-z]+;/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function parseRSS2JSON(data: any): LiveNewsItem[] {
   if (!data?.items) return [];
   return data.items.slice(0, 8).map((item: any) => ({
-    title: (item.title || '').replace(/<[^>]*>/g, ''),
+    title: cleanHtml(item.title || ''),
     link: item.link || '',
     pubDate: item.pubDate || '',
-    source: (item.author || item.source || 'News').slice(0, 30),
-    snippet: (item.description || '').replace(/<[^>]*>/g, '').slice(0, 200).trim(),
+    source: cleanHtml(item.author || '').slice(0, 30) || 'News',
+    snippet: cleanHtml(item.description || '').slice(0, 250),
   }));
 }
 

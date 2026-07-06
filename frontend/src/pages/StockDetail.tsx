@@ -6,7 +6,7 @@ import { getStockOverview, getStockNews, getStockSocial, getStockSentiment } fro
 import type { StockOverview, NewsItem, SocialPost, SentimentDetail } from '../types';
 import { SENTIMENT_COLORS } from '../types';
 import { useLiveNews } from '../hooks/useLiveNews';
-import { analyzeNewsWithAI, hasAIKey, type AIAnalysisResult } from '../services/aiAnalyzer';
+import { analyzeNewsWithAI, hasAIProxy, type AIAnalysisResult } from '../services/aiAnalyzer';
 
 export default function StockDetail() {
   const { code } = useParams<{ code: string }>();
@@ -17,7 +17,7 @@ export default function StockDetail() {
   const [social, setSocial] = useState<SocialPost[]>([]);
   const [status, setStatus] = useState<'loading' | 'ok' | 'notfound'>('loading');
   const handleAIAnalysis = async (itemId: string, title: string, summary: string) => {
-    if (!hasAIKey()) return;
+    if (!hasAIProxy()) return;
     setAiLoading(prev => ({ ...prev, [itemId]: true }));
     try {
       const result = await analyzeNewsWithAI(title, summary);
@@ -218,7 +218,7 @@ export default function StockDetail() {
                     <div style={{ display: 'flex', gap: 10, fontSize: 11, color: 'var(--text-secondary)', alignItems: 'center' }}>
                       <span>{item.source}</span>
                       <span>{item.published_at}</span>
-                      {hasAIKey() && (
+                      {hasAIProxy() && (
                         <button
                           onClick={() => handleAIAnalysis(item.id, item.title, item.summary)}
                           disabled={aiLoad}
